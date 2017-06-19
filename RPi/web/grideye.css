@@ -1,0 +1,142 @@
+body {
+    background-color: lightgrey;
+    font-family:Verdana, Geneva, sans-serif;
+}
+
+.container{
+    width:100%
+}
+.controls {
+    float: left;
+    clear: right;
+//    width: 30%;
+    height: 200px;
+    margin:10px;
+}
+
+.grid-container{
+//    width: 70%;
+    float: left;
+}
+
+#received{
+    //font-family:Verdana, Geneva, sans-serif;
+    font-size: xx-large;
+}
+#grid , #grid-bw{
+    float: left;
+    margin:10px;
+}
+
+#grid-bw div.col-bw {
+    width: 56px;
+    height: 56px;
+// -webkit-border-radius: 5 em;
+    -moz-border-radius: 5em;
+// background-color: red;
+    float: left;
+    margin-left: 1px;
+    border: #000 1px solid;
+}
+
+#grid div.col {
+     width: 6px;
+//     width: 6px;
+    height: 6px;
+//    height: 6px;
+// -webkit-border-radius: 5 em;
+    -moz-border-radius: 5em;
+// background-color: red;
+    float: left;
+    margin-left: 0px;
+    border: #000 0px solid;
+}
+
+#grid-bw div.col-bw.active {
+    border: #FF0000 3px solid;
+    margin-right:-2px;
+    margin-bottom:-2px;
+    margin-left:-1px;
+    margin-top:-2px;
+}
+
+.row-bw {
+    clear: left;
+    color: white;
+    padding-top: 1px;
+}
+.row{
+    clear: left;
+    color: white;
+    padding-top: 0px;
+}
+
+@media all and (max-width: 1100px) {
+    .controls {
+        clear: all !important;
+        float: none;
+    }
+}
+
+.onoffswitch-inner:before {
+    content: "ON";
+    padding-left: 10px;
+    color: #FFFFFF;
+    background-color: #2FCCFF;
+}
+
+.onoffswitch-inner:after {
+    content: "OFF";
+    padding-right: 10px;
+    color: #999999;
+    background-color: #EEEEEE;
+    text-align: right;
+}
+
+.relay-label {
+    float: right;
+}
+
+.reset-button, .reload-button {
+    color: white;
+    display: inline-block;
+    background-color: green;
+    font-size: 16px;
+    padding: 10px 24px;
+    border-radius: 12px;
+    text-align:center;
+    float:none;
+    clear:left;
+    margin:10px;
+}
+
+.reload-button {
+   background-color: darkgrey;
+   width: 140px
+}
+
+.alarm-box {
+    color: white;
+    height: 50px;
+    width: 90px;
+    line-height: 50px;
+    display: inline-block;
+    background-color: red;
+    font-size: 16px;
+    padding: 10px 24px;
+    border-radius: 100px;
+    text-align:center;
+    float:none;
+    clear:both;
+    margin:10px;
+    border: darkred 2px solid;
+}
+
+.blink{
+    animation:blink 400ms infinite alternate;
+}
+
+@keyframes blink {
+    from { opacity:1; }
+    to { opacity:0; }
+};
