@@ -126,6 +126,7 @@ class Processor (multiprocessing.Process):
                         corr_coeff = abs(np.corrcoef(np.array((self.background_frame, temperatureMap)))[0, 1])
                     if corr_coeff >= 0.5: #moderate to strong correlation
                         self.background_window_idx = self.background_window_idx + 1
+                        self.background_frame = (self.background_frame + np.array(temperatureMap))/2
                     else:
                         self.background_frame = np.array(temperatureMap)
                         self.background_window_idx = 1
@@ -146,7 +147,10 @@ class Processor (multiprocessing.Process):
                 message = json.loads(message)
                 if message[SOURCE_TAG]==ALARM:
                     if message[ALARM]==RESET:
+                        alarmMessage={}
+                        alarmMessage[ALARM]=RESET
                         self.alarm_triggered=False
+                        self.processor_to_web_queue.put(json.dumps(alarmMessage))
                 elif message[SOURCE_TAG]==BACKGROUND:
                    self.status = Processor.S_PROCESS_BACKGROUND 
                    self.background_window_idx = 1

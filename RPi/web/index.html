@@ -80,8 +80,10 @@ ws.onmessage = function(ev){
       var json = JSON.parse(ev.data);
       if("ALARM" in json){
           var alarmBox=$(".alarm-box");
-          if (json.ALARM=="SET"){
+          if (json.ALARM=="SET") {
               alarmBox.addClass("blink")
+          } else if (json.ALARM=="SET") {
+              alarmBox.removeClass("blink")
           }
       }
       //var data=json.GE;
@@ -165,7 +167,6 @@ ws.send(message.data);
 // send a command to the serial port
 $('.reset-button').click(function(ev){
   	ev.preventDefault();
-  	$(".alarm-box").removeClass("blink");
 	sendMessage({'data':JSON.stringify({'ALARM':'RESET'})});
 });
 
