@@ -10,5 +10,6 @@ The "Arduino" directory contains the Arduino firmware source code. To compile, u
 - MAX4822 (https://github.com/MaximIntegratedRefDesTeam/MAX4822)
 - ArduinoJson
 
-The RPi directory contains python code for the server part.
-
+The RPi directory contains python source code for the server part.
+The server code is written in Python 2.7, and used Numpy and Scipy packages for the calculations.
+For the web server, you will need to install the Tornado package.

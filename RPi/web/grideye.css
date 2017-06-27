@@ -1,52 +1,85 @@
 body {
     background-color: lightgrey;
-    font-family:Verdana, Geneva, sans-serif;
+    font-family: Verdana, Geneva, sans-serif;
 }
 
-.container{
-    width:100%
+.section {
+    clear: both;
+    padding: 0px;
+    margin: 0px;
 }
-.controls {
+
+/*  COLUMN SETUP  */
+.col-resp {
+    display: block;
     float: left;
-    clear: right;
-//    width: 30%;
-    height: 200px;
-    margin:10px;
+    margin: 1% 0 1% 1.6%;
 }
 
-.grid-container{
-//    width: 70%;
-    float: left;
+.col-resp:first-child {
+    margin-left: 0;
 }
 
-#received{
-    //font-family:Verdana, Geneva, sans-serif;
+/*  GROUPING  */
+.group:before,
+.group:after {
+    content: "";
+    display: table;
+}
+
+.group:after {
+    clear: both;
+}
+
+.group {
+    zoom: 1; /* For IE 6/7 */
+}
+
+/*  GRID OF THREE  */
+.span_3_of_3 {
+    width: 10%;
+}
+
+.span_2_of_3 {
+    width: 12%;
+}
+
+.span_1_of_3 {
+    width: 70%;
+}
+
+/*  GO FULL WIDTH BELOW 480 PIXELS */
+@media only screen and (max-width: 480px) {
+    .col-resp {
+        margin: 1% 0 1% 0%;
+    }
+
+    .span_3_of_3, .span_2_of_3, .span_1_of_3 {
+        width: 100%;
+    }
+}
+
+#received {
+/ / font-family: Verdana, Geneva, sans-serif;
     font-size: xx-large;
 }
-#grid , #grid-bw{
+
+#grid, #grid-bw {
     float: left;
-    margin:10px;
+    margin: 10px;
 }
 
 #grid-bw div.col-bw {
     width: 56px;
     height: 56px;
-// -webkit-border-radius: 5 em;
-    -moz-border-radius: 5em;
-// background-color: red;
     float: left;
     margin-left: 1px;
     border: #000 1px solid;
 }
 
 #grid div.col {
-     width: 6px;
-//     width: 6px;
+    width: 6px;
     height: 6px;
-//    height: 6px;
-// -webkit-border-radius: 5 em;
-    -moz-border-radius: 5em;
-// background-color: red;
     float: left;
     margin-left: 0px;
     border: #000 0px solid;
@@ -54,10 +87,10 @@ body {
 
 #grid-bw div.col-bw.active {
     border: #FF0000 3px solid;
-    margin-right:-2px;
-    margin-bottom:-2px;
-    margin-left:-1px;
-    margin-top:-2px;
+    margin-right: -2px;
+    margin-bottom: -2px;
+    margin-left: -1px;
+    margin-top: -2px;
 }
 
 .row-bw {
@@ -65,17 +98,11 @@ body {
     color: white;
     padding-top: 1px;
 }
-.row{
+
+.row {
     clear: left;
     color: white;
     padding-top: 0px;
-}
-
-@media all and (max-width: 1100px) {
-    .controls {
-        clear: all !important;
-        float: none;
-    }
 }
 
 .onoffswitch-inner:before {
@@ -104,15 +131,15 @@ body {
     font-size: 16px;
     padding: 10px 24px;
     border-radius: 12px;
-    text-align:center;
-    float:none;
-    clear:left;
-    margin:10px;
+    text-align: center;
+    float: none;
+    margin: 10px;
 }
 
 .reload-button {
-   background-color: darkgrey;
-   width: 140px
+    background-color: darkgrey;
+    width: 140px;
+    float: none;
 }
 
 .alarm-box {
@@ -125,18 +152,22 @@ body {
     font-size: 16px;
     padding: 10px 24px;
     border-radius: 100px;
-    text-align:center;
-    float:none;
-    clear:both;
-    margin:10px;
+    text-align: center;
+    float: left;
+    margin: 10px;
     border: darkred 2px solid;
 }
 
-.blink{
-    animation:blink 400ms infinite alternate;
+.blink {
+    animation: blink 400ms infinite alternate;
 }
 
 @keyframes blink {
-    from { opacity:1; }
-    to { opacity:0; }
-};
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+

@@ -7,6 +7,9 @@ DEVICE_ID=1 # matches the device ID stored in the firmware
 DEVICE_TYPE=2 # DEVICE_TYPE_MRD130_MRD131
 CONFIG_FILE_DEFAULT='./config/grideye.cfg'
 
+GRID_SIZE_X = 8
+GRID_SIZE_Y = 8
+
 PORT_TAG = 'port'
 SPEED_TAG = 'speed'
 RANGE_TAG = 'range'
@@ -25,18 +28,8 @@ STATUS_TAG='STATUS'
 STATUS_ON='ON'
 STATUS_OFF='OFF'
 GE = "GE"
-
 START_MARKER = '{'
 END_MARKER = '}'
-GE = "GE"
-GE_MIN="GE_MIN"
-GE_MAX="GE_MAX"
-GE_AVG="GE_AVG"
-GE_MDN="GE_MDN"
-GE_STD="GE_STD"
-GE_PIXEL_COLOUR="GE_PIXEL_COLOUR"
-GE_PIXEL_BW="GE_PIXEL_BW"
-GE_HTML="GE_HTML"
 NON_LATCHING_RELAY = "NLR"
 LATCHING_RELAY = "LR"
 
@@ -195,6 +188,12 @@ class RoadTestDevice(object):
         if self.debug_queue:
             self.debug_queue.put("DEVICE: Sent to Serial Port: %s" % (self.encode()))
 
+    def convertToTemperature(self, width, height, dataIn):
+        dataOut = [None] * width * height
+        for idx1 in range(0, width * height):
+            dataOut[idx1] = float(dataIn[idx1]) / 256
+        return dataOut
+
     def readData(self):
         global endFound, startFound, buffer, write, writeFinal
 
@@ -214,6 +213,8 @@ class RoadTestDevice(object):
                     try:
                         import json
                         reading = json.loads(buffer)
+                        if GE in reading:
+                            reading[GE] = self.convertToTemperature(GRID_SIZE_X,GRID_SIZE_Y,reading[GE])
                         data = json.dumps(reading)
                         return data
                     except ValueError as e:

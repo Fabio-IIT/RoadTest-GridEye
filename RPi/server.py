@@ -8,6 +8,7 @@ import multiprocessing
 import node
 import processor
 import sys
+import analyser
 
 CONFIG_FILE_DEFAULT='./config/grideye.cfg'
 NODE_SECTION = 'Node'
@@ -77,7 +78,8 @@ if __name__ == '__main__':
     ## start the serial worker in background (as a deamon)
     node = node.Node(web_to_node_queue, processor_to_node_queue, node_to_processor_queue,cfgFile, debug_queue)
     ## start the monitoring process worker in background (as a deamon)
-    proc = processor.Processor(node_to_processor_queue, processor_to_node_queue, processor_to_web_queue, processor_debug_queue)
+    proc = processor.Processor(node_to_processor_queue, processor_to_node_queue, processor_to_web_queue, processor_debug_queue,
+                               detection_mode=analyser.MODE_DIFFERENTIAL,differential_temperature_threshold=2)
 
     node.daemon = True
     proc.daemon = True
@@ -89,6 +91,7 @@ if __name__ == '__main__':
             (r"/", IndexHandler),
             (r'/(jquery.onoff.js)', tornado.web.StaticFileHandler, {'path': './web/'}),
             (r'/(rainbow.js)', tornado.web.StaticFileHandler, {'path': './web/'}),
+            (r'/(grideye.js)', tornado.web.StaticFileHandler, {'path': './web/'}),
             (r'/(jquery.onoff.css)', tornado.web.StaticFileHandler, {'path': './web/'}),
             (r'/(grideye.css)', tornado.web.StaticFileHandler, {'path': './web/'}),
             (r"/ws", WebSocketHandler)
