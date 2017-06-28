@@ -20,32 +20,51 @@ X_TAG = "X"
 Y_TAG = "Y"
 CELL="CELL"
 
+DEFAULT_ALARM_TRIGGER_THRESHOLD=1
+
 class Processor(multiprocessing.Process,analyser.ImageProcessor):
 
-    def __init__(self, node_to_processor_queue, processor_to_node_queue, processor_to_web_queue, debug_queue=None,
-                 detection_mode=MODE_ANY,  differential_temperature_threshold=DEFAULT_DIFFERENTIAL_THRESHOLD,
+    def __init__(self, node_to_processor_queue, processor_to_node_queue, processor_to_web_queue,
+                 debug_queue=None, configParser=None, detection_mode=MODE_ANY,
+                 differential_temperature_threshold=DEFAULT_DIFFERENTIAL_THRESHOLD,
                  absolute_temperature_threshold=DEFAULT_ABSOLUTE_THRESHOLD,
-                 frame_size_X=GRID_SIZE_X, frame_size_Y=GRID_SIZE_Y, window_size=DEFAULT_WINDOW_SIZE):
+                 frame_size_X=GRID_SIZE_X, frame_size_Y=GRID_SIZE_Y,
+                 image_size_X=IMAGE_SIZE_X, image_size_Y=IMAGE_SIZE_Y,
+                 window_size=DEFAULT_WINDOW_SIZE,
+                 alarm_trigger_threshold=DEFAULT_ALARM_TRIGGER_THRESHOLD):
         '''
-        :param node_to_processor_queue:   input queue for data from the device (node)
-        :param processor_to_node_queue:  output queue for events,alarms etc to the device (node)
-        :param processor_to_web_queue:   output queue for events,alarms etc to the web server (update UI)
-        :param frame_size:    image frame size in pixels
-        :param window_size:   observation window expressed as number of frames to analyse
+        :param node_to_processor_queue:    input queue for data from the device (node)
+        :param processor_to_node_queue:    output queue for events,alarms etc to the device (node)
+        :param processor_to_web_queue:     output queue for events,alarms etc to the web server (update UI)
+        :param debug_queue:                output queue for debugging messages
+        :param detection_mode:
+        :param differential_temperature_threshold:
+        :param absolute_temperature_threshold:
+        :param frame_size_X:               temperature and alarm frame size X axis (number of rows)
+        :param frame_size_Y:               temperature and alarm frame size Y axis (number of columns)
+        :param image_size_X:               thermal image frame size X axis (number of rows)
+        :param image_size_Y:               thermal image frame size Y axis (number of columns)
+        :param window_size:                number of frames required to set background temperature
         :param triggering_event_threshold: number of frames necessary for detecting the change
                                            and trigger the event
         '''
         multiprocessing.Process.__init__(self)
-        analyser.ImageProcessor.__init__(self,detection_mode=detection_mode, threshold_abs=absolute_temperature_threshold,
-        threshold_diff=differential_temperature_threshold, window_size=window_size)
+        analyser.ImageProcessor.__init__(self,detection_mode=detection_mode,
+                                         threshold_abs=absolute_temperature_threshold,
+                                         threshold_diff=differential_temperature_threshold,
+                                         window_size=window_size,
+                                         debug_queue=debug_queue)
         self.size_X=frame_size_X
         self.size_Y=frame_size_Y
+        self.image_size_X=image_size_X
+        self.image_size_Y=image_size_Y
         self.node_to_processor_queue = node_to_processor_queue
         self.processor_to_node_queue = processor_to_node_queue
         self.processor_to_web_queue = processor_to_web_queue
-        self.debug_queue = debug_queue
         self.alarm_mask = Frame(frame_size_X, frame_size_Y, [0] * frame_size_X * frame_size_Y)
+        self.alarm_trigger_threshold = alarm_trigger_threshold
         self.alarm_triggered = False
+        self.alarm_counter = 0
 
     def process(self, message):
         from copy import deepcopy
@@ -63,7 +82,7 @@ class Processor(multiprocessing.Process,analyser.ImageProcessor):
             processedMessage[GE_AVG] = imgFrame.mean()
             processedMessage[GE_MDN] = imgFrame.median()
             processedMessage[GE_STD] = imgFrame.stdDev()
-            imgFrame.expand(IMAGE_SIZE_X,IMAGE_SIZE_Y)
+            imgFrame.expand(self.image_size_X,self.image_size_Y)
             imgFrame.filterNoise()
             processedMessage[GE] = list(imgFrame.rawData)
         return processedMessage
@@ -76,14 +95,18 @@ class Processor(multiprocessing.Process,analyser.ImageProcessor):
         :param frame:
         :return:
         '''
-        if event==OBJECT_IN:
+        if event==OBJECT_IN and not self.alarm_triggered:
             alarm = False
             for point in detected_object.getPoints():
-                if self.alarm_mask.getValue(point.x, point.y) != 0 and not self.alarm_triggered:
-                    alarm = True
+                if self.alarm_mask.getValue(point.x, point.y) != 0:
+                    if self.alarm_counter == self.alarm_trigger_threshold:
+                        alarm = True
+                        self.alarm_counter = 0
+                    else:
+                        self.alarm_counter += 1
                     break
             # update device if alarm has been triggered
-            if alarm and not self.alarm_triggered:
+            if alarm:
                 # send only the relay setting to the device
                 alarmMessage = {}
                 alarmMessage[LATCHING_RELAY] = 7
@@ -118,6 +141,7 @@ class Processor(multiprocessing.Process,analyser.ImageProcessor):
                         alarmMessage = {}
                         alarmMessage[ALARM] = RESET
                         self.alarm_triggered = False
+                        self.alarm_counter = 0
                         self.processor_to_web_queue.put(json.dumps(alarmMessage))
                 elif message[SOURCE_TAG] == BACKGROUND:
                     # upgrade the background image

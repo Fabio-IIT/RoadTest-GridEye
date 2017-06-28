@@ -37,7 +37,7 @@ startFound = False
 endFound = False
 buffer = ''
 
-class RoadTestDevice(object):
+class Device(object):
     def __init__(self,cfgFile=None, debug_queue=None):
         self.debug_queue=debug_queue
         self.config = ConfigParser.ConfigParser()
@@ -236,7 +236,7 @@ if __name__ == '__main__':
     #     print "GE is %s" % data["GE"]
     # del data["GE"]
     # print data
-    device=RoadTestDevice()
+    device=Device()
     print device
     #device.setNonLatchingRelayStatus(8,1)
     print device

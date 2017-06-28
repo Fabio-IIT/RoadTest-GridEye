@@ -230,7 +230,8 @@ class ImageProcessor(object):
     S_PROCESS_IMAGE = 2  # background is set, can process image for change
 
     def __init__(self, detection_mode=MODE_ANY , threshold_abs=DEFAULT_ABSOLUTE_THRESHOLD,
-                 threshold_diff=DEFAULT_DIFFERENTIAL_THRESHOLD, window_size = DEFAULT_WINDOW_SIZE):
+                 threshold_diff=DEFAULT_DIFFERENTIAL_THRESHOLD, window_size = DEFAULT_WINDOW_SIZE,
+                 debug_queue=None):
         '''
 
         :param detection_mode: detection mode. Available modes are
@@ -247,6 +248,7 @@ class ImageProcessor(object):
         :param threshold_diff:value for the differential temperature (default 2C)
         :param window_size:number of frame processed to set the background image
         '''
+        self.debug_queue = debug_queue
         self.thresholdDiff = threshold_diff
         self.thresholdAbs = threshold_abs
         self.detectionMode=detection_mode
