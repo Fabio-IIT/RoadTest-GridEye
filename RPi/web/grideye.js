@@ -34,11 +34,11 @@ $(document).ready(function () {
     ws.onopen = function () {
         $message.attr("class", 'label label-success');
         $message.text('Starting Up...');
+        sendMessage({'data':JSON.stringify({'SRC': 'WEB','CMD':'UPDATE_UI'})});
     };
+
     ws.onmessage = function (ev) {
-        console.log(ev.data);
         $message.attr("class", 'label label-info');
-        //$message.text(ev.data);
         try {
             var json = JSON.parse(ev.data);
             if ("ALARM" in json) {
@@ -62,6 +62,18 @@ $(document).ready(function () {
                     if (cell.hasClass('active')) {
                         cell.removeClass('active');
                     }
+                }
+            }
+            if ("MODE" in json){
+                switch (json.MODE){
+                    case 1:$('#det-mode-abs').prop('checked',true);
+                            break;
+                    case 2:$('#det-mode-diff').prop('checked',true);
+                            break;
+                    case 3:$('#det-mode-both').prop('checked',true);
+                            break;
+                    case 4:$('#det-mode-any').prop('checked',true);
+                            break;
                 }
             }
             if ("NLR" in json) {
@@ -132,8 +144,8 @@ $(document).ready(function () {
         ws.send(message.data);
     };
 
+    $('input[name=detection-mode]').attr("disabled",true);
 
-// send a command to the serial port
     $('.reset-button').click(function (ev) {
         ev.preventDefault();
         sendMessage({'data': JSON.stringify({'ALARM': 'RESET'})});

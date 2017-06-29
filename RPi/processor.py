@@ -1,6 +1,8 @@
+__author__ = 'fabio'
+import ConfigParser
 import multiprocessing
 import json
-from node import SOURCE_TAG, WEB, DEVICE, ALARM, BACKGROUND, RESET, SET
+from node import SOURCE_TAG, WEB, DEVICE, ALARM, BACKGROUND, RESET, SET, UPDATE_UI, COMMAND_TAG
 from device import GRID_SIZE_X,GRID_SIZE_Y,GE,NON_LATCHING_RELAY,LATCHING_RELAY
 import analyser
 from analyser import *
@@ -19,37 +21,57 @@ GE_CORR_COEFF = "GE_CORR_COEFF"
 X_TAG = "X"
 Y_TAG = "Y"
 CELL="CELL"
+MODE="MODE"
 
 DEFAULT_ALARM_TRIGGER_THRESHOLD=1
+
+GRID_SIZE_X_OPT="temperature_grid_rows"
+GRID_SIZE_Y_OPT="temperature_grid_columns"
+IMAGE_SIZE_X_OPT="image_grid_rows"
+IMAGE_SIZE_Y_OPT="image_grid_columns"
+ALARM_TRIGGER_THRESHOLD_OPT="alarm_trigger_threshold"
+ALARM_COMMAND_OPT="alarm_command"
+ALARM_MASK_OPT="alarm_mask"
+
+DEFAULT_ALARM_COMMAND='{"LR":7}'
 
 class Processor(multiprocessing.Process,analyser.ImageProcessor):
 
     def __init__(self, node_to_processor_queue, processor_to_node_queue, processor_to_web_queue,
-                 debug_queue=None, configParser=None, detection_mode=MODE_ANY,
+                 debug_queue=None, config_file=None, detection_mode=MODE_ANY,
                  differential_temperature_threshold=DEFAULT_DIFFERENTIAL_THRESHOLD,
                  absolute_temperature_threshold=DEFAULT_ABSOLUTE_THRESHOLD,
                  frame_size_X=GRID_SIZE_X, frame_size_Y=GRID_SIZE_Y,
                  image_size_X=IMAGE_SIZE_X, image_size_Y=IMAGE_SIZE_Y,
                  window_size=DEFAULT_WINDOW_SIZE,
-                 alarm_trigger_threshold=DEFAULT_ALARM_TRIGGER_THRESHOLD):
+                 alarm_trigger_threshold=DEFAULT_ALARM_TRIGGER_THRESHOLD,
+                 alarm_command=DEFAULT_ALARM_COMMAND):
         '''
+
         :param node_to_processor_queue:    input queue for data from the device (node)
         :param processor_to_node_queue:    output queue for events,alarms etc to the device (node)
         :param processor_to_web_queue:     output queue for events,alarms etc to the web server (update UI)
         :param debug_queue:                output queue for debugging messages
-        :param detection_mode:
-        :param differential_temperature_threshold:
-        :param absolute_temperature_threshold:
+        :param config_file:                configuration file
+        :param detection_mode:             mode of operation for the object detection. Can be:
+                                           MODE_ABSOLUTE     - detection based on object's absolute temp.
+                                           MODE_DIFFERENTIAL - detection based on object's temperature
+                                                               difference with the background
+        :param differential_temperature_threshold:   minimum differential temp. for positive detection
+        :param absolute_temperature_threshold:       minimum absolute temp.  for positive detection
         :param frame_size_X:               temperature and alarm frame size X axis (number of rows)
         :param frame_size_Y:               temperature and alarm frame size Y axis (number of columns)
         :param image_size_X:               thermal image frame size X axis (number of rows)
         :param image_size_Y:               thermal image frame size Y axis (number of columns)
         :param window_size:                number of frames required to set background temperature
-        :param triggering_event_threshold: number of frames necessary for detecting the change
+        :param alarm_trigger_threshold:    number of frames necessary for detecting the change
                                            and trigger the event
+        :param alarm_command:              the JSON command to trigger the alarm on the device
         '''
+
         multiprocessing.Process.__init__(self)
-        analyser.ImageProcessor.__init__(self,detection_mode=detection_mode,
+        analyser.ImageProcessor.__init__(self, config_file=config_file,
+                                         detection_mode=detection_mode,
                                          threshold_abs=absolute_temperature_threshold,
                                          threshold_diff=differential_temperature_threshold,
                                          window_size=window_size,
@@ -65,6 +87,43 @@ class Processor(multiprocessing.Process,analyser.ImageProcessor):
         self.alarm_trigger_threshold = alarm_trigger_threshold
         self.alarm_triggered = False
         self.alarm_counter = 0
+        self.alarm_command = alarm_command
+        if config_file:
+            config = ConfigParser.ConfigParser()
+            config.optionxform = str
+            config.read(config_file)
+            #override with configuration based settings
+            if config.has_option(PROCESSOR_SECTION,GRID_SIZE_X_OPT):
+                self.size_X=config.get(PROCESSOR_SECTION,GRID_SIZE_X_OPT)
+            if config.has_option(PROCESSOR_SECTION,GRID_SIZE_Y_OPT):
+                self.size_Y=config.getint(PROCESSOR_SECTION, GRID_SIZE_Y_OPT)
+            if config.has_option(PROCESSOR_SECTION,IMAGE_SIZE_X_OPT):
+                self.image_size_X=config.getint(PROCESSOR_SECTION, IMAGE_SIZE_X_OPT)
+            if config.has_option(PROCESSOR_SECTION,IMAGE_SIZE_Y_OPT):
+                self.image_size_Y=config.getint(PROCESSOR_SECTION, IMAGE_SIZE_Y_OPT)
+            if config.has_option(PROCESSOR_SECTION,ALARM_TRIGGER_THRESHOLD_OPT):
+                self.alarm_trigger_threshold=config.getint(PROCESSOR_SECTION, ALARM_TRIGGER_THRESHOLD_OPT)
+            if config.has_option(PROCESSOR_SECTION,ALARM_COMMAND_OPT):
+                self.alarm_command=config.get(PROCESSOR_SECTION, ALARM_COMMAND_OPT)
+            if config.has_option(PROCESSOR_SECTION,ALARM_MASK_OPT):
+                from ast import literal_eval
+                for x in config.get(PROCESSOR_SECTION, ALARM_MASK_OPT).split(" "):
+                    (x, y) = literal_eval(x)
+                    self.alarm_mask.setValue(x, y, 1)
+
+    def updateUI(self):
+        #update UI
+        for x in range (0, self.size_X):
+            for y in range (0, self.size_Y):
+                if self.alarm_mask.getValue(x,y)==1:
+                    maskMessage = {}
+                    maskMessage[X_TAG] = x + 1
+                    maskMessage[Y_TAG] = y + 1
+                    maskMessage[CELL] = SET
+                    self.processor_to_web_queue.put(json.dumps(maskMessage))
+        message={}
+        message[MODE]=self.detection_mode
+        self.processor_to_web_queue.put(message)
 
     def process(self, message):
         from copy import deepcopy
@@ -109,9 +168,9 @@ class Processor(multiprocessing.Process,analyser.ImageProcessor):
             if alarm:
                 # send only the relay setting to the device
                 alarmMessage = {}
-                alarmMessage[LATCHING_RELAY] = 7
-                self.processor_to_node_queue.put(json.dumps(alarmMessage))
-                del alarmMessage[LATCHING_RELAY]
+                #alarmMessage[LATCHING_RELAY] = 7
+                self.processor_to_node_queue.put(json.dumps(json.loads(self.alarm_command)))
+                #del alarmMessage[LATCHING_RELAY]
                 alarmMessage[ALARM] = SET
                 self.processor_to_web_queue.put(json.dumps(alarmMessage))
                 self.alarm_triggered = True
@@ -126,6 +185,7 @@ class Processor(multiprocessing.Process,analyser.ImageProcessor):
         :return:
         '''
         self.addDetectionCallback(self.detect_cb,OBJECT_IN)
+        self.updateUI()
         while True:
             while not self.node_to_processor_queue.empty():
                 # process data from the device
@@ -153,8 +213,12 @@ class Processor(multiprocessing.Process,analyser.ImageProcessor):
                     if self.debug_queue and False:
                         self.debug_queue.put("PROCESSOR: send msg to web - %s" % message)
                 elif message[SOURCE_TAG] == WEB:
-                    # process data coming from the web (alarm mask settings)
-                    if all(key in message for key in (X_TAG, Y_TAG)):
+                    # process data coming from the web
+                    if COMMAND_TAG in message:
+                        if message[COMMAND_TAG] == UPDATE_UI:
+                            self.updateUI()
+                    # (alarm mask settings)
+                    elif all(key in message for key in (X_TAG, Y_TAG)):
                         maskMessage = {}
                         maskMessage[X_TAG]=message[X_TAG]
                         maskMessage[Y_TAG]=message[Y_TAG]
@@ -164,6 +228,7 @@ class Processor(multiprocessing.Process,analyser.ImageProcessor):
                         else:
                             self.alarm_mask.setValue(message[X_TAG] - 1, message[Y_TAG] - 1,1)
                             maskMessage[CELL]=SET
-                        self.processor_to_web_queue.put(maskMessage)
+                        self.processor_to_web_queue.put(json.dumps(maskMessage))
                         if self.debug_queue:
                             self.debug_queue.put("PROCESSOR: alarm grid %s" % self.alarm_mask)
+

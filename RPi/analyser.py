@@ -1,19 +1,34 @@
 __author__ = 'fabio'
+import ConfigParser
 from copy import deepcopy
 import numpy as np
 from scipy.interpolate import griddata
 from scipy.signal import medfilt
 import math
 
-DEFAULT_WINDOW_SIZE = 10
-
-DEFAULT_ABSOLUTE_THRESHOLD=24
-DEFAULT_DIFFERENTIAL_THRESHOLD=2
-
+PROCESSOR_SECTION="Processor"
+DETECTION_MODE_OPT="detection_mode"
+DETECTION_MODE_ASBOLUTE="absolute"
+DETECTION_MODE_DIFFERENTIAL="differential"
+DETECTION_MODE_BOTH="both"
+DETECTION_MODE_ANY="any"
 MODE_ABSOLUTE=1
 MODE_DIFFERENTIAL=2
 MODE_BOTH=3
 MODE_ANY=4
+
+detection_mode_dict = {DETECTION_MODE_ASBOLUTE:MODE_ABSOLUTE,
+                       DETECTION_MODE_DIFFERENTIAL:MODE_DIFFERENTIAL,
+                       DETECTION_MODE_BOTH:MODE_BOTH,
+                       DETECTION_MODE_ANY:MODE_ANY}
+
+ABSOLUTE_THRESHOLD_OPT="absolute_threshold"
+DIFFERENTIAL_THRESHOLD_OPT="differential_threshold"
+WINDOW_SIZE_OPT="window_size"
+
+DEFAULT_WINDOW_SIZE = 10
+DEFAULT_ABSOLUTE_THRESHOLD=24
+DEFAULT_DIFFERENTIAL_THRESHOLD=2
 
 SKIP_TEMPERATURE=-999
 
@@ -39,7 +54,7 @@ class Point(object):
         return "(%r,%r):%r" % (self.x,self.y,self.value)
 
 class Frame(object):
-    def __init__(self,sizeX,sizeY,data):
+    def __init__(self,sizeX,sizeY,data=None):
         '''
         Frame object constructor.
         :param sizeX: number of rows of the Frame image matrix
@@ -50,6 +65,8 @@ class Frame(object):
         self.sizeX = sizeX
         self.sizeY = sizeY
         self.size = sizeX * sizeY
+        if data==None:
+            data=[0] * sizeX * sizeY
         self.shape = np.shape(data)
         if len(self.shape) == 1:
             if sizeX * sizeY != len(data):
@@ -65,9 +82,9 @@ class Frame(object):
             # anything else is bad!
             raise ValueError("rawData array dimension does not match (X,Y) size!")
 
-    def setValue(self, x, y, temperature):
-        self.rawData[x*self.sizeY+y]=temperature
-        self.imgMatrix[x][y]=temperature
+    def setValue(self, x, y, value):
+        self.rawData[x*self.sizeY+y]=value
+        self.imgMatrix[x][y]=value
 
     def getValue(self, x, y):
         return self.imgMatrix[x][y]
@@ -229,8 +246,10 @@ class ImageProcessor(object):
     S_PROCESS_BACKGROUND = 1  # need to acquire frames to set background
     S_PROCESS_IMAGE = 2  # background is set, can process image for change
 
-    def __init__(self, detection_mode=MODE_ANY , threshold_abs=DEFAULT_ABSOLUTE_THRESHOLD,
-                 threshold_diff=DEFAULT_DIFFERENTIAL_THRESHOLD, window_size = DEFAULT_WINDOW_SIZE,
+    def __init__(self, config_file=None, detection_mode=MODE_ANY,
+                 threshold_abs=DEFAULT_ABSOLUTE_THRESHOLD,
+                 threshold_diff=DEFAULT_DIFFERENTIAL_THRESHOLD,
+                 window_size = DEFAULT_WINDOW_SIZE,
                  debug_queue=None):
         '''
 
@@ -241,28 +260,44 @@ class ImageProcessor(object):
                                                   is evaluated on the difference
                                                   between foreground and backgroud
                                                   temperatures
-                               The modes can be combined together using bitwise OR,
-                               which will use both thresholds to detect objects
-                               default value: MODE_ABSOLUTE | MODE_DIFFERENTIAL
+                               MODE_BOTH: both the thresholds for absolute temp.
+                                          and differential must be met at the same
+                                          time for positive detection
+                               MODE_ANY:  either the threshold for absolute temp.
+                                          or the one for differential must be met
+                                          for positive detection
         :param threshold_abs: value for the absolute temperature (default 25C)
         :param threshold_diff:value for the differential temperature (default 2C)
         :param window_size:number of frame processed to set the background image
         '''
         self.debug_queue = debug_queue
-        self.thresholdDiff = threshold_diff
-        self.thresholdAbs = threshold_abs
-        self.detectionMode=detection_mode
+        self.threshold_diff = threshold_diff
+        self.threshold_abs = threshold_abs
+        self.detection_mode=detection_mode
         self.background=None
-        self.currentFrame=None
+        self.current_frame=None
         self.detectedObjects={}
-        self.detectionCallbacks={}
-        self.detectionCallbacks[OBJECT_IN] = []
-        self.detectionCallbacks[OBJECT_OUT] = []
+        self.detectionCallbacks={OBJECT_IN:[],OBJECT_OUT:[]}
+        # self.detectionCallbacks[OBJECT_IN] = []
+        # self.detectionCallbacks[OBJECT_OUT] = []
         self.trackingCallbacks={}
-        self.currentFrame=None
+        self.current_frame=None
         self.bkgIdx = 0
-        self.windowSize = window_size
+        self.window_size = window_size
         self.status = ImageProcessor.S_PROCESS_BACKGROUND
+        if config_file:
+            #override defaults with configuration based settings
+            config = ConfigParser.ConfigParser()
+            config.optionxform = str
+            config.read(config_file)
+            if config.has_option(PROCESSOR_SECTION,DETECTION_MODE_OPT):
+                self.detection_mode=detection_mode_dict[config.get(PROCESSOR_SECTION,DETECTION_MODE_OPT)]
+            if config.has_option(PROCESSOR_SECTION,ABSOLUTE_THRESHOLD_OPT):
+                self.threshold_abs=config.getint(PROCESSOR_SECTION, ABSOLUTE_THRESHOLD_OPT)
+            if config.has_option(PROCESSOR_SECTION,DIFFERENTIAL_THRESHOLD_OPT):
+                self.threshold_diff=config.getint(PROCESSOR_SECTION, DIFFERENTIAL_THRESHOLD_OPT)
+            if config.has_option(PROCESSOR_SECTION,WINDOW_SIZE_OPT):
+                self.window_size=config.getint(PROCESSOR_SECTION, WINDOW_SIZE_OPT)
 
     def getDetectedObjects(self):
         return self.detectedObjects
@@ -324,7 +359,7 @@ class ImageProcessor(object):
             # again.
             if self.bkgIdx == 0:
                 self.background = frame.clone()
-            elif self.bkgIdx < self.windowSize -1 :
+            elif self.bkgIdx < self.window_size -1 :
                 corr_coeff = Frame.correlation(self.background, frame)
                 if abs(corr_coeff) >= 0.5:  # moderate to strong correlation
                     self.background.average(frame)
@@ -336,7 +371,7 @@ class ImageProcessor(object):
             self.bkgIdx = self.bkgIdx + 1
         elif self.status == ImageProcessor.S_PROCESS_IMAGE:
             currentDetectedObjs = deepcopy(self.detectedObjects)
-            self.currentFrame = frame.clone()
+            self.current_frame = frame.clone()
             self.detectedObjects = self.detectObjects()
             detectedObjs = deepcopy(self.detectedObjects)
             # compare the list of detected objects with
@@ -354,19 +389,19 @@ class ImageProcessor(object):
 
     def isThresholdPassed(self,x,y,frame=None):
         passed = False
-        currentFrame = frame if frame != None else self.currentFrame
+        currentFrame = frame if frame != None else self.current_frame
         temperature = currentFrame.getValue(x,y)
         if temperature != SKIP_TEMPERATURE:
-            passedAbs = temperature>=self.thresholdAbs
+            passedAbs = temperature>=self.threshold_abs
             if self.background != None:
-                passedDiff = (temperature - self.background.getValue(x, y)) >= self.thresholdDiff
+                passedDiff = (temperature - self.background.getValue(x, y)) >= self.threshold_diff
             else:
                 passedDiff = False
-            if self.detectionMode == MODE_ABSOLUTE:
+            if self.detection_mode == MODE_ABSOLUTE:
                 passed = passedAbs
-            elif self.detectionMode == MODE_DIFFERENTIAL:
+            elif self.detection_mode == MODE_DIFFERENTIAL:
                 passed = passedDiff
-            elif self.detectionMode == MODE_BOTH:
+            elif self.detection_mode == MODE_BOTH:
                 passed = passedAbs and passedDiff
             else: #default MODE_ANY
                 passed = passedAbs or passedDiff
@@ -375,7 +410,7 @@ class ImageProcessor(object):
     def detectObjects(self):
         objects=[]
         objIdx=1
-        workFrame = self.currentFrame.clone()
+        workFrame = self.current_frame.clone()
         for x in range(0,workFrame.sizeX):
             for y in range(0,workFrame.sizeY):
                 if self.isThresholdPassed(x,y):

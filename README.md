@@ -13,3 +13,23 @@ The "Arduino" directory contains the Arduino firmware source code. To compile, u
 The RPi directory contains python source code for the server part.
 The server code is written in Python 2.7, and used Numpy and Scipy packages for the calculations.
 For the web server, you will need to install the Tornado package.
+
+Installation.
+You need to have Arduino IDE installed, and Python 2.7, and all the respective libraries listed above.
+To install the application you need to clone/download the repository locally, for example to clone the repository issue the command:
+    git clone https://github.com/Fabio-IIT/RoadTest-GridEye
+
+You need to build and upload the firmware for Arduino UNO first. Open the Arduino IDE and load the firmware sketch located under:
+    ./RoadTest-GridEye/Arduino/grideye/grideye.ino
+
+Build and upload onto your Arduino board.
+
+Move under the directory:
+    ./RoadTest-GridEye/RPi/
+
+in the directory config there is the grideye.cfg configuration file for the application.
+Edit the setting in the file according to your need, then start the application by issuing the command:
+
+    python ./server.py
+
+Open your browser and point to http://localhost:8080 to access the dashboard.

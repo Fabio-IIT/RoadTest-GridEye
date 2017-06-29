@@ -6,7 +6,9 @@ from device import *
 
 TIMESTAMP_TAG="TIME" #mandatory
 SOURCE_TAG="SRC"
+COMMAND_TAG="CMD"
 
+UPDATE_UI="UPDATE_UI"
 DEVICE="DEVICE"
 WEB="WEB"
 ALARM="ALARM"
@@ -15,9 +17,10 @@ RESET="RESET"
 SET="SET"
 
 class Node(multiprocessing.Process, Device):
-    def __init__(self, web_to_node_queue, processor_to_node_queue, node_to_processor_queue, configFile, debug_queue=None):
+    def __init__(self, web_to_node_queue, processor_to_node_queue, node_to_processor_queue,
+                 config_file, debug_queue=None):
         multiprocessing.Process.__init__(self)
-        Device.__init__(self,configFile, debug_queue)
+        Device.__init__(self,config_file, debug_queue)
         self.web_to_node_queue = web_to_node_queue
         self.processor_to_node_queue = processor_to_node_queue
         self.node_to_processor_queue = node_to_processor_queue
@@ -30,7 +33,7 @@ class Node(multiprocessing.Process, Device):
                 data = json.loads(self.processor_to_node_queue.get())
                 alarmData={}
                 if NON_LATCHING_RELAY in data:
-                    alarmData[NON_LATCHING_RELAY]=data[NON_LATCHING_RELAY]
+                    alarmData[NON_LATCHING_RELAY] = data[NON_LATCHING_RELAY]
                 if LATCHING_RELAY in data:
                     alarmData[LATCHING_RELAY] = data[LATCHING_RELAY]
                 # send it to the serial device
@@ -42,6 +45,10 @@ class Node(multiprocessing.Process, Device):
                 if self.debug_queue:
                     self.debug_queue.put(str("NODE: recv web msg - "+data))
                 data = json.loads(data)
+                if SOURCE_TAG in data:
+                    if data[SOURCE_TAG]==WEB and COMMAND_TAG in data:
+                        if data[COMMAND_TAG]==UPDATE_UI:
+                            self.node_to_processor_queue.put(json.dumps(data))
                 # write data to the device
                 if ALARM in data:
                     if data[ALARM]==RESET:

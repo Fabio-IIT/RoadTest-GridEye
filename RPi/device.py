@@ -1,3 +1,4 @@
+__author__ = 'fabio'
 import ConfigParser
 import serial
 import time
@@ -38,12 +39,12 @@ endFound = False
 buffer = ''
 
 class Device(object):
-    def __init__(self,cfgFile=None, debug_queue=None):
+    def __init__(self,config_file=None, debug_queue=None):
         self.debug_queue=debug_queue
         self.config = ConfigParser.ConfigParser()
         self.config.optionxform = str
-        self.cfgFile = CONFIG_FILE_DEFAULT if cfgFile==None else cfgFile
-        self.config.read(self.cfgFile)
+        self.config_file = CONFIG_FILE_DEFAULT if config_file == None else config_file
+        self.config.read(self.config_file)
         if not self.config.has_section(DEVICE_SECTION):
             self.config.add_section(DEVICE_SECTION)
             self.config.set(DEVICE_SECTION,ID_TAG,str(DEVICE_ID)) # set in the firmware code
@@ -70,7 +71,7 @@ class Device(object):
             else:
                 if self.config.get(LR_SECTION, RELAY + SEP_TAG + str(i)) == STATUS_ON:
                     self.lr += pow(2, i-1)
-        with open(self.cfgFile, 'wb') as configfile:
+        with open(self.config_file, 'wb') as configfile:
             self.config.write(configfile)
         self.sp = serial.Serial(self.config.get(DEVICE_SECTION,PORT_TAG), self.config.get(DEVICE_SECTION,SPEED_TAG), timeout=1)
         time.sleep(2)  # give time to the serial interface to settle
@@ -102,7 +103,7 @@ class Device(object):
                 status = STATUS_OFF
             self.config.set(NLR_SECTION,RELAY+SEP_TAG+str(relay),status)
 
-            with open(self.cfgFile, 'wb') as configfile:
+            with open(self.config_file, 'wb') as configfile:
                 self.config.write(configfile)
 
     def setLatchingRelayStatus(self,relay,value):
@@ -114,7 +115,7 @@ class Device(object):
                 self.lr = self.lr ^ pow(2, relay - 1)
                 status = STATUS_OFF
             self.config.set(LR_SECTION,RELAY+SEP_TAG+str(relay),status)
-            with open(self.cfgFile, 'wb') as configfile:
+            with open(self.config_file, 'wb') as configfile:
                 self.config.write(configfile)
 
     def setNonLatchingRelays(self,status):
@@ -155,7 +156,7 @@ class Device(object):
         :return: None
         '''
         self.config.set(DEVICE_SECTION,GE,STATUS_ON if enabled==1 else STATUS_OFF)
-        with open(self.cfgFile, 'wb') as configfile:
+        with open(self.config_file, 'wb') as configfile:
             self.config.write(configfile)
 
     def getNonLatchingRelays(self):
@@ -236,10 +237,24 @@ if __name__ == '__main__':
     #     print "GE is %s" % data["GE"]
     # del data["GE"]
     # print data
-    device=Device()
-    print device
-    #device.setNonLatchingRelayStatus(8,1)
-    print device
-    device.setLatchingRelayStatus(2,1)
-    print device
-    device.writeData()
+    # device=Device()
+    # print device
+    # #device.setNonLatchingRelayStatus(8,1)
+    # print device
+    # device.setLatchingRelayStatus(2,1)
+    # print device
+    # device.writeData()
+
+    config = ConfigParser.ConfigParser()
+    config.optionxform = str
+    config_file = "./config/grideye.cfg"
+    config.read(config_file)
+    if config.has_option("Processor", "alarm_mask"):
+        import analyser
+        frame=analyser.Frame(8,8)
+        from ast import literal_eval
+        for x in config.get("Processor",  "alarm_mask").split(" "):
+            (x,y)=literal_eval(x)
+            frame.setValue(x,y,1)
+        print frame
+
