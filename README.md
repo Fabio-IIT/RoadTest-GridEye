@@ -17,14 +17,17 @@ For the web server, you will need to install the Tornado package.
 Installation.
 You need to have Arduino IDE installed, and Python 2.7, and all the respective libraries listed above.
 To install the application you need to clone/download the repository locally, for example to clone the repository issue the command:
+
     git clone https://github.com/Fabio-IIT/RoadTest-GridEye
 
 You need to build and upload the firmware for Arduino UNO first. Open the Arduino IDE and load the firmware sketch located under:
+
     ./RoadTest-GridEye/Arduino/grideye/grideye.ino
 
 Build and upload onto your Arduino board.
 
 Move under the directory:
+
     ./RoadTest-GridEye/RPi/
 
 in the directory config there is the grideye.cfg configuration file for the application.
