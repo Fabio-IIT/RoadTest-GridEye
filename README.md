@@ -36,4 +36,5 @@ Edit the settings in the file according to your needs, then start the applicatio
 
     python ./server.py
 
-Open your browser and point to http://localhost:8080 to access the dashboard.
+Open your browser and point to http://<RPi-IP-address>:8080 to access the dashboard.
+
