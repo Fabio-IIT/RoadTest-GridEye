@@ -15,6 +15,7 @@ The server code is written in Python 2.7, and used Numpy and Scipy packages for 
 For the web server, you will need to install the Tornado package.
 
 Installation.
+
 You need to have Arduino IDE installed, and Python 2.7, and all the respective libraries listed above.
 To install the application you need to clone/download the repository locally, for example to clone the repository issue the command:
 
@@ -31,7 +32,7 @@ Move under the directory:
     ./RoadTest-GridEye/RPi/
 
 in the directory config there is the grideye.cfg configuration file for the application.
-Edit the setting in the file according to your need, then start the application by issuing the command:
+Edit the settings in the file according to your needs, then start the application by issuing the command:
 
     python ./server.py
 
